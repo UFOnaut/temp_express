@@ -1,0 +1,38 @@
+import { Server } from 'http'
+import { AddressInfo } from 'net'
+import app from './src/app'
+
+import { MongoDb } from './src/database'
+import { logger } from './src/utils'
+import { common } from './src/config'
+
+
+const { APP_PORT } = common
+
+async function setup () {
+  const listener: Server = app.listen(APP_PORT)
+
+  await MongoDb.init()
+
+  const { address, port } = listener.address() as AddressInfo
+
+  logger.info(`Server listening at http://${address}:${port}`)
+
+  // end function handle proper server shutdown
+  const end = async (e: any) => {
+    process.stdout.write('\n')
+
+    await MongoDb.close()
+    listener.close()
+    logger.error(e)
+    logger.info('Server stopped')
+  }
+
+  // close server correctly in case of critical errors or os signals
+  process.once('SIGTERM', end)
+  process.once('SIGINT', end)
+  process.on('unhandledRejection', end)
+  process.on('uncaughtException', end)
+}
+
+setup()
